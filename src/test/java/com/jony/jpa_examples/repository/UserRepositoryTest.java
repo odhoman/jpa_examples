@@ -2,6 +2,7 @@ package com.jony.jpa_examples.repository;
 
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import com.jony.jpa_examples.JpaExamplesApplication;
 import com.jony.jpa_examples.entity.User;
@@ -15,6 +16,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.Sort.TypedSort;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
@@ -46,7 +48,7 @@ public class UserRepositoryTest {
   }
 
   @Test
-  public void testFindAllSortAndPageable() {
+  public void testFindAllSortAndPageablePagingAndSorting() {
 
     Pageable sortedByAgeDescNameAsc =
         PageRequest.of(0, 5, Sort.by("age").descending().and(Sort.by("name")));
@@ -85,20 +87,33 @@ public class UserRepositoryTest {
 
   @Test
   public void testQueryMethodsSpecialParameterHandlingPageable() {
-    Page<User> users1 = userRepository
+    Page<User> users = userRepository
         .findByLastName("aaaaaal",
             PageRequest.of(0, 20, Sort.by("age").descending().and(Sort.by("name"))));
 
-    verifySizeExpected(users1, 20L);
+    verifySizeExpected(users, 20L);
 
-    users1 = userRepository
-        .findByLastName("aaaaaal", users1.nextPageable());
+    users = userRepository
+        .findByLastName("aaaaaal", users.nextPageable());
 
-    verifySizeExpected(users1, 18L);
+    verifySizeExpected(users, 18L);
 
-    assertEquals(users1.getTotalElements(), 38L);
-    assertEquals(users1.getTotalPages(), 2);
-    assertEquals(users1.getSort().isSorted(), true);
+    assertEquals(users.getTotalElements(), 38L);
+    assertEquals(users.getTotalPages(), 2);
+    assertTrue(users.getSort().isSorted());
+  }
+
+  @Test
+  public void testQueryMethodsSpecialParameterHandlingPageableTypedSort() {
+    TypedSort<User> person = Sort.sort(User.class);
+    Sort sort = person.by(User::getName).descending()
+        .and(person.by(User::getLastName).descending());
+
+    Page<User> users = userRepository
+        .findByLastName("aaaaaal",
+            PageRequest.of(0, 20, sort));
+
+    validateFirstUserNameAndSize(users, "rrrrrr", 20L);
   }
 
   private void validateFirstUserNameAndSize(Iterable<User> users, String userName,
